@@ -1,8 +1,8 @@
 #pragma once
 
 #define N 9
-#define threads_count 256
-#define max_blocks 32
-#define max_boards 1000000
-#define max_boards_size N*N*max_boards
-#define iterations 19
+#define threads_count 1024
+#define blocks_count 256
+#define max_boards_size pow(2, 27)
+#define iterations 17
+#define validator_size 27
