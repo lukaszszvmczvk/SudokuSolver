@@ -17,8 +17,8 @@
 bool load(std::string filename, int* board);
 void print_board(int* board);
 int run_bfs(int* old_boards, int* new_boards, int* board_index,
-    int* empty_spaces, int* empty_spaces_count, int boards_count, int* old_validators, int* new_validators);
-void initialize_validators(int* board, int* validators);
+    int* empty_spaces, int* empty_spaces_count, int boards_count, __int16* old_validators, __int16* new_validators);
+void initialize_validators(int* board, __int16 validators[]);
 
 int main()
 {
@@ -48,8 +48,8 @@ int main()
         int* empty_space_count;
         // where to store the next new board generated
         int* board_index;
-        int* old_validators;
-        int* new_validators;
+        __int16* old_validators;
+        __int16* new_validators;
 
         // allocate memory
         cudaError_t cudaStatus = cudaMalloc(&new_boards, max_boards_size * sizeof(int));
@@ -67,10 +67,10 @@ int main()
         cudaStatus = cudaMalloc(&board_index, sizeof(int));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
-        cudaStatus = cudaMalloc(&old_validators, max_boards_size * sizeof(int));
+        cudaStatus = cudaMalloc(&old_validators, max_boards_size * sizeof(__int16));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
-        cudaStatus = cudaMalloc(&new_validators, max_boards_size * sizeof(int));
+        cudaStatus = cudaMalloc(&new_validators, max_boards_size * sizeof(__int16));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
 
@@ -84,20 +84,20 @@ int main()
         cudaStatus = cudaMemset(board_index, 0, sizeof(int));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMemset failed: %s\n", cudaGetErrorString(cudaStatus));
-        cudaStatus = cudaMemset(old_validators, 0, max_boards_size * sizeof(int));
+        cudaStatus = cudaMemset(old_validators, 0, max_boards_size * sizeof(__int16));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMemset failed: %s\n", cudaGetErrorString(cudaStatus));
-        cudaStatus = cudaMemset(new_validators, 0, max_boards_size * sizeof(int));
+        cudaStatus = cudaMemset(new_validators, 0, max_boards_size * sizeof(__int16));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMemset failed: %s\n", cudaGetErrorString(cudaStatus));
 
         // copy the initial board to the old boards
         cudaMemcpy(old_boards, board, N * N * sizeof(int), cudaMemcpyHostToDevice);
         
-        int validator[validator_size] = {0};
+        __int16 validator[validator_size] = {0};
         initialize_validators(board, validator);
 
-        cudaMemcpy(old_validators, validator, validator_size * sizeof(int), cudaMemcpyHostToDevice);
+        cudaMemcpy(old_validators, validator, validator_size * sizeof(__int16), cudaMemcpyHostToDevice);
 
 #pragma endregion
 
@@ -108,7 +108,7 @@ int main()
     // output to store solved board in
     int* dev_solved;
 
-    printf("Number of boards found in bfs: %d\n", 0);
+    printf("Number of boards found in bfs: %d\n", boards_count);
 
     print_board(board);
 
@@ -163,7 +163,7 @@ void print_board(int* board)
 
 // function to run bfs
 int run_bfs(int* old_boards, int* new_boards, int* board_index,
-    int* empty_spaces, int* empty_spaces_count, int boards_count, int* old_validators, int* new_validators)
+    int* empty_spaces, int* empty_spaces_count, int boards_count, __int16* old_validators, __int16* new_validators)
 {
     for (int i = 0; i < iterations; ++i)
     {
@@ -186,7 +186,7 @@ int run_bfs(int* old_boards, int* new_boards, int* board_index,
     return boards_count;
 }
 
-void initialize_validators(int* board, int validators[validator_size])
+void initialize_validators(int* board, __int16 validators[validator_size])
 {
     // validate rows
     for (int i = 0; i < N; ++i)

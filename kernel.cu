@@ -1,7 +1,7 @@
 ﻿#include "kernel.cuh"
 
 __global__ void BFS(int* old_boards, int* new_boards, int* board_index,
-	int* empty_spaces, int* empty_spaces_count, int boards_count, int* old_validators, int* new_validators)
+	int* empty_spaces, int* empty_spaces_count, int boards_count, __int16* old_validators, __int16* new_validators)
 {
 	unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
 	while (index < boards_count)
@@ -70,7 +70,7 @@ __global__ void BFS(int* old_boards, int* new_boards, int* board_index,
 }
 
 void kernel_BFS(int* old_boards, int* new_boards, int* board_index,
-	int* empty_spaces, int* empty_spaces_count, int boards_count, int* old_validators, int* new_validators)
+	int* empty_spaces, int* empty_spaces_count, int boards_count, __int16* old_validators, __int16* new_validators)
 {
 	BFS <<< blocks_count, threads_count >>> (old_boards, new_boards, board_index, 
 		empty_spaces, empty_spaces_count, boards_count, old_validators, new_validators);
