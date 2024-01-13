@@ -1,6 +1,7 @@
 ﻿#include "kernel.cuh"
+#include <iostream>
 
-__global__ void BFS(int* old_boards, int* new_boards, int* board_index,
+__global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index,
 	int* empty_spaces, int* empty_spaces_count, int boards_count, __int16* old_validators, __int16* new_validators)
 {
 	unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -69,7 +70,7 @@ __global__ void BFS(int* old_boards, int* new_boards, int* board_index,
 	}
 }
 
-void kernel_BFS(int* old_boards, int* new_boards, int* board_index,
+void kernel_BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index,
 	int* empty_spaces, int* empty_spaces_count, int boards_count, __int16* old_validators, __int16* new_validators)
 {
 	BFS <<< blocks_count, threads_count >>> (old_boards, new_boards, board_index, 
