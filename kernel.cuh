@@ -18,4 +18,6 @@
 
 void kernel_BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index,
 	int* empty_spaces, int* empty_spaces_count, int boards_count, __int16* old_validators, __int16* new_validators);
-void kernel_DFS();
+
+void kernel_DFS(unsigned short* boards, __int16* validators, int boards_count, int* empty_spaces, 
+	int* empty_spaces_count, int* sol_found, unsigned short* sol);

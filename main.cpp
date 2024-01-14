@@ -32,7 +32,7 @@ int main()
         // stores the location of the empty spaces in the boards
         int* empty_spaces;
         // stores the number of empty spaces in each board
-        int* empty_space_count;
+        int* empty_spaces_count;
         // where to store the next new board generated
         int* board_index;
         __int16* old_validators;
@@ -48,7 +48,7 @@ int main()
         cudaStatus = cudaMalloc(&empty_spaces, max_boards_size * sizeof(int));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
-        cudaStatus = cudaMalloc(&empty_space_count, max_boards_size * sizeof(int));
+        cudaStatus = cudaMalloc(&empty_spaces_count, max_boards_size * sizeof(int));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
         cudaStatus = cudaMalloc(&board_index, sizeof(int));
@@ -61,7 +61,7 @@ int main()
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
 
-
+        // memset memory
         cudaStatus = cudaMemset(new_boards, 0, max_boards_size * sizeof(unsigned short));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMemset failed: %s\n", cudaGetErrorString(cudaStatus));
@@ -81,26 +81,40 @@ int main()
         // copy the initial board to the old boards
         cudaMemcpy(prev_boards, board, N * N * sizeof(unsigned short), cudaMemcpyHostToDevice);
         
+        // init validators
         __int16 validator[validator_size] = {0};
         initialize_validators(board, validator);
-
         cudaMemcpy(old_validators, validator, validator_size * sizeof(__int16), cudaMemcpyHostToDevice);
 
 #pragma endregion
 
-    int boards_count = run_bfs(prev_boards, new_boards, board_index, empty_spaces, empty_space_count, 0, old_validators, new_validators);
-
-    // flag to determine when a solution has been found
-    int* dev_finished;
-    // output to store solved board in
-    int* dev_solved;
-
+    int boards_count = run_bfs(prev_boards, new_boards, board_index, empty_spaces, empty_spaces_count, 0, old_validators, new_validators);
     printf("Number of boards found in bfs: %d\n", boards_count);
 
-    print_board(board);
+    // flag to determine when a solution has been found
+    int* solution_found;
+    // output to store solved board in
+    unsigned short* solution_board;
 
+    cudaMalloc(&solution_found, sizeof(int));
+    cudaMalloc(&solution_board, N * N * sizeof(unsigned short));
+    cudaMemset(solution_found, 0, sizeof(bool));
+    cudaMemcpy(solution_board, board, N * N * sizeof(unsigned short), cudaMemcpyHostToDevice);
+
+    // run dfs
+    kernel_DFS(new_boards, new_validators, boards_count, empty_spaces, empty_spaces_count, solution_found, solution_board);
+
+    // copy solution to cpu
+    unsigned short solution_board_cpu[N * N];
+    memset(solution_board_cpu, 0, N * N * sizeof(unsigned short));
+    cudaMemcpy(solution_board_cpu, solution_board, N * N * sizeof(unsigned short), cudaMemcpyDeviceToHost);
+
+    // print solution
+    print_board(solution_board_cpu);
+
+    // free memory
     cudaFree(empty_spaces);
-    cudaFree(empty_space_count);
+    cudaFree(empty_spaces_count);
     cudaFree(new_boards);
     cudaFree(prev_boards);
     cudaFree(board_index);
@@ -169,7 +183,15 @@ int run_bfs(unsigned short* prev_boards, unsigned short* new_boards, int* board_
             kernel_BFS(new_boards, prev_boards, board_index, empty_spaces, empty_spaces_count, boards_count, new_validators, old_validators);
         }
     }
+
+
     cudaMemcpy(&boards_count, board_index, sizeof(int), cudaMemcpyDeviceToHost);
+
+    if (iterations % 2 == 0)
+    {
+        new_boards = prev_boards;
+        new_validators = old_validators;
+    }
     return boards_count;
 }
 
