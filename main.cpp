@@ -4,8 +4,9 @@
 bool load(std::string filename, unsigned short* board);
 void print_board(unsigned short* board);
 int run_bfs(unsigned short* prev_boards, unsigned short* new_boards, int* board_index,
-    int* empty_spaces, int* empty_spaces_count, int boards_count, __int16* old_validators, __int16* new_validators);
+    unsigned short* empty_spaces, int boards_count, __int16* old_validators, __int16* new_validators);
 void initialize_validators(unsigned short* board, __int16 validators[]);
+unsigned short count_empty_spaces(unsigned short* board);
 
 int main()
 {
@@ -23,17 +24,12 @@ int main()
     }
 
 
-#pragma region Initialize memory
+#pragma region Initialize memory for bfs and dfs
 
-        // the boards after the next iteration of breadth first search
+        // initialize variables used in bfs and dfs
         unsigned short* new_boards;
-        // the previous boards, which formthe frontier of the breadth first search
         unsigned short* prev_boards;
-        // stores the location of the empty spaces in the boards
-        int* empty_spaces;
-        // stores the number of empty spaces in each board
-        int* empty_spaces_count;
-        // where to store the next new board generated
+        unsigned short* empty_spaces;
         int* board_index;
         __int16* old_validators;
         __int16* new_validators;
@@ -45,10 +41,7 @@ int main()
         cudaStatus = cudaMalloc(&prev_boards, max_boards_size * sizeof(unsigned short));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
-        cudaStatus = cudaMalloc(&empty_spaces, max_boards_size * sizeof(int));
-        if (cudaStatus != cudaSuccess)
-            fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
-        cudaStatus = cudaMalloc(&empty_spaces_count, max_boards_size * sizeof(int));
+        cudaStatus = cudaMalloc(&empty_spaces, max_boards_size * sizeof(unsigned short));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
         cudaStatus = cudaMalloc(&board_index, sizeof(int));
@@ -88,19 +81,20 @@ int main()
 
 #pragma endregion
 
-    int boards_count = run_bfs(prev_boards, new_boards, board_index, empty_spaces, empty_spaces_count, 0, old_validators, new_validators);
+    int boards_count = run_bfs(prev_boards, new_boards, board_index, empty_spaces, 0, old_validators, new_validators);
     printf("Number of boards found in bfs: %d\n", boards_count);
 
-    // flag to determine when a solution has been found
+    // variables to keep solution
     int* solution_found;
-    // output to store solved board in
     unsigned short* solution_board;
 
+    // allocate memory for them
     cudaMalloc(&solution_found, sizeof(int));
     cudaMalloc(&solution_board, N * N * sizeof(unsigned short));
     cudaMemset(solution_found, 0, sizeof(bool));
     cudaMemcpy(solution_board, board, N * N * sizeof(unsigned short), cudaMemcpyHostToDevice);
 
+    unsigned short empty_spaces_count = count_empty_spaces(board) - iterations;
     // run dfs
     kernel_DFS(new_boards, new_validators, boards_count, empty_spaces, empty_spaces_count, solution_found, solution_board);
 
@@ -114,7 +108,6 @@ int main()
 
     // free memory
     cudaFree(empty_spaces);
-    cudaFree(empty_spaces_count);
     cudaFree(new_boards);
     cudaFree(prev_boards);
     cudaFree(board_index);
@@ -164,7 +157,7 @@ void print_board(unsigned short* board)
 
 // function to run bfs
 int run_bfs(unsigned short* prev_boards, unsigned short* new_boards, int* board_index,
-    int* empty_spaces, int* empty_spaces_count, int boards_count, __int16* old_validators, __int16* new_validators)
+    unsigned short* empty_spaces, int boards_count, __int16* old_validators, __int16* new_validators)
 {
     for (int i = 0; i < iterations; ++i)
     {
@@ -176,11 +169,11 @@ int run_bfs(unsigned short* prev_boards, unsigned short* new_boards, int* board_
 
         if (i % 2 == 0)
         {
-            kernel_BFS(prev_boards, new_boards, board_index, empty_spaces, empty_spaces_count, boards_count, old_validators, new_validators);
+            kernel_BFS(prev_boards, new_boards, board_index, empty_spaces, boards_count, old_validators, new_validators);
         }
         else
         {
-            kernel_BFS(new_boards, prev_boards, board_index, empty_spaces, empty_spaces_count, boards_count, new_validators, old_validators);
+            kernel_BFS(new_boards, prev_boards, board_index, empty_spaces, boards_count, new_validators, old_validators);
         }
     }
 
@@ -195,6 +188,7 @@ int run_bfs(unsigned short* prev_boards, unsigned short* new_boards, int* board_
     return boards_count;
 }
 
+// init validators
 void initialize_validators(unsigned short* board, __int16 validators[])
 {
     // validate rows
@@ -245,4 +239,19 @@ void initialize_validators(unsigned short* board, __int16 validators[])
         }
         validators[2 * N + i] = subboard;
     }
+}
+
+// count empty spaces in board
+unsigned short count_empty_spaces(unsigned short* board)
+{
+    unsigned short counter = 0;
+
+    for (int i = 0; i < N * N; ++i)
+    {
+        if (board[i] == 0)
+        {
+            ++counter;
+        }
+    }
+    return counter;
 }
