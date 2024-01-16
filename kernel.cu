@@ -1,7 +1,8 @@
 ﻿#include "kernel.cuh"
 #include <iostream>
 
-__global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index, int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_spaces, bool is_last)
+__global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index, int boards_count, __int16* old_validators, 
+	__int16* new_validators, unsigned short* empty_spaces, unsigned short* empty_cells_count, bool is_last)
 {
 	unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -70,6 +71,9 @@ __global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int*
 							}
 						}
 
+						// assign empty cells count
+						*empty_cells_count = e_id;
+
 						// assign value to empty cell
 						new_boards[current_board * N * N + empty_index - board_start] = value;
 
@@ -93,7 +97,7 @@ __global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int*
 	}
 }
 
-__global__ void DFS(unsigned short* boards, __int16* validators, int boards_count, unsigned short* empty_spaces, unsigned short empty_spaces_count, int* sol_found, unsigned short* sol)
+__global__ void DFS(unsigned short* boards, __int16* validators, int boards_count, unsigned short* empty_spaces, unsigned short* empty_spaces_count, int* sol_found, unsigned short* sol)
 {
 	int index = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -104,7 +108,7 @@ __global__ void DFS(unsigned short* boards, __int16* validators, int boards_coun
 		unsigned short* current_board = boards + index * N * N;
 		__int16* currentValidators = validators + index * validator_size;
 
-		while (empty_index >= 0 && empty_index < empty_spaces_count)
+		while (empty_index >= 0 && empty_index < *empty_spaces_count)
 		{
 			int cell_id = empty_spaces[empty_index];
 
@@ -155,7 +159,7 @@ __global__ void DFS(unsigned short* boards, __int16* validators, int boards_coun
 			}
 		}
 
-		if (empty_index == empty_spaces_count)
+		if (empty_index == *empty_spaces_count)
 		{
 			*sol_found = 1;
 
@@ -169,14 +173,14 @@ __global__ void DFS(unsigned short* boards, __int16* validators, int boards_coun
 	}
 }
 
-void kernel_BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index, int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_spaces, bool is_last)
+void kernel_BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index, int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_spaces, unsigned short* empty_cells_count, bool is_last)
 {
 	BFS <<< blocks_count, threads_count >>> (old_boards, new_boards, board_index, 
-		boards_count, old_validators, new_validators, empty_spaces, is_last);
+		boards_count, old_validators, new_validators, empty_spaces, empty_cells_count, is_last);
 	cudaDeviceSynchronize();
 }
 
-void kernel_DFS(unsigned short* boards, __int16* validators, int boards_count, unsigned short* empty_spaces, unsigned short empty_spaces_count, int* sol_found, unsigned short* sol)
+void kernel_DFS(unsigned short* boards, __int16* validators, int boards_count, unsigned short* empty_spaces, unsigned short* empty_spaces_count, int* sol_found, unsigned short* sol)
 {
 	DFS << < blocks_count, threads_count >> > (boards, validators, boards_count, empty_spaces, empty_spaces_count, sol_found, sol);
 	cudaDeviceSynchronize();
