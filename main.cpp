@@ -87,6 +87,7 @@ int main()
 
 #pragma endregion
 
+    // run bfs to create boards
     int boards_count = run_bfs(prev_boards, new_boards, board_index, 0, old_validators, new_validators, empty_cells, empty_cells_count);
     printf("Number of boards found in bfs: %d\n", boards_count);
 
@@ -100,7 +101,7 @@ int main()
     cudaMemset(solution_found, 0, sizeof(bool));
     cudaMemcpy(solution_board, board, N * N * sizeof(unsigned short), cudaMemcpyHostToDevice);
 
-    // run dfs
+    // run dfs to solve boards
     kernel_DFS(new_boards, new_validators, boards_count, empty_cells, empty_cells_count, solution_found, solution_board);
 
     // copy solution to cpu

@@ -2,7 +2,7 @@
 #include <iostream>
 
 __global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index, int boards_count, __int16* old_validators, 
-	__int16* new_validators, unsigned short* empty_spaces, unsigned short* empty_cells_count, bool is_last)
+	__int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count, bool is_last)
 {
 	unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -66,7 +66,7 @@ __global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int*
 							if (is_last && new_boards[current_board * N * N + j] == 0 && (j / N != row || j % N != column))
 							{
 								// update empty spaces used in DFS
-								empty_spaces[e_id] = j;
+								empty_cells[e_id] = j;
 								e_id++;
 							}
 						}
@@ -97,36 +97,44 @@ __global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int*
 	}
 }
 
-__global__ void DFS(unsigned short* boards, __int16* validators, int boards_count, unsigned short* empty_spaces, unsigned short* empty_spaces_count, int* sol_found, unsigned short* sol)
+__global__ void DFS(unsigned short* boards, __int16* validators, int boards_count, unsigned short* empty_cells, unsigned short* empty_cells_count, int* sol_found, unsigned short* sol)
 {
 	int index = blockDim.x * blockIdx.x + threadIdx.x;
 
 	while ((*sol_found) == 0 && index < boards_count)
 	{
+		// initialize current index in empty cells array
 		int empty_index = 0;
 
+		// get current board and validators
 		unsigned short* current_board = boards + index * N * N;
 		__int16* currentValidators = validators + index * validator_size;
 
-		while (empty_index >= 0 && empty_index < *empty_spaces_count)
+		// backtrack solution 
+		// end while if there is no solution or solution is found
+		while (empty_index >= 0 && empty_index < *empty_cells_count)
 		{
-			int cell_id = empty_spaces[empty_index];
+			// current empty cell index 
+			int cell_id = empty_cells[empty_index];
 
+			// compute row, column and subboard of current cell
 			int row = cell_id / N;
 			int column = cell_id % N;
 			int subboard = (row / 3) * 3 + (column / 3);
 
+			// initialize flag to check if there is a possible value to put
 			bool flag = false;
+
 			for (int value = current_board[cell_id] + 1; value <= N; ++value)
 			{
 				int row_flag = (1 << value) & (currentValidators[row]);
 				int column_flag = (1 << value) & (currentValidators[N + column]);;
 				int subboard_flag = (1 << value) & (currentValidators[2 * N + subboard]);
 
-				if (row_flag == 0 && column_flag == 0 && subboard_flag == 0)
-				{
-					flag = true;
+				flag = row_flag == 0 && column_flag == 0 && subboard_flag == 0;
 
+				if (flag)
+				{
 					current_board[cell_id] = value;
 					currentValidators[row] |= (1 << value);
 					currentValidators[N + column] |= (1 << value);
@@ -134,10 +142,10 @@ __global__ void DFS(unsigned short* boards, __int16* validators, int boards_coun
 
 					empty_index++;
 					break;
-
 				}
 			}
 
+			// if there is not possible value to put
 			if (!flag)
 			{
 				current_board[cell_id] = 0;
@@ -145,7 +153,7 @@ __global__ void DFS(unsigned short* boards, __int16* validators, int boards_coun
 
 				if (empty_index >= 0)
 				{
-					cell_id = empty_spaces[empty_index];
+					cell_id = empty_cells[empty_index];
 
 					unsigned short value = current_board[cell_id];
 					row = cell_id / N;
@@ -159,7 +167,8 @@ __global__ void DFS(unsigned short* boards, __int16* validators, int boards_coun
 			}
 		}
 
-		if (empty_index == *empty_spaces_count)
+		// copy board if solution found
+		if (empty_index == *empty_cells_count)
 		{
 			*sol_found = 1;
 
@@ -173,15 +182,15 @@ __global__ void DFS(unsigned short* boards, __int16* validators, int boards_coun
 	}
 }
 
-void kernel_BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index, int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_spaces, unsigned short* empty_cells_count, bool is_last)
+void kernel_BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index, int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count, bool is_last)
 {
 	BFS <<< blocks_count, threads_count >>> (old_boards, new_boards, board_index, 
-		boards_count, old_validators, new_validators, empty_spaces, empty_cells_count, is_last);
+		boards_count, old_validators, new_validators, empty_cells, empty_cells_count, is_last);
 	cudaDeviceSynchronize();
 }
 
-void kernel_DFS(unsigned short* boards, __int16* validators, int boards_count, unsigned short* empty_spaces, unsigned short* empty_spaces_count, int* sol_found, unsigned short* sol)
+void kernel_DFS(unsigned short* boards, __int16* validators, int boards_count, unsigned short* empty_cells, unsigned short* empty_cells_count, int* sol_found, unsigned short* sol)
 {
-	DFS << < blocks_count, threads_count >> > (boards, validators, boards_count, empty_spaces, empty_spaces_count, sol_found, sol);
+	DFS << < blocks_count, threads_count >> > (boards, validators, boards_count, empty_cells, empty_cells_count, sol_found, sol);
 	cudaDeviceSynchronize();
 }
