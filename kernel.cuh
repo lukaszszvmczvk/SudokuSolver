@@ -12,6 +12,7 @@
 #include <cuda_runtime.h>
 #include <algorithm>
 #include <curand.h>
+#include <chrono>
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"

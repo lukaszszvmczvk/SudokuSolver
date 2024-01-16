@@ -10,6 +10,7 @@ void initialize_validators(unsigned short* board, __int16 validators[]);
 int main()
 {
     cudaSetDevice(0);
+    std::chrono::steady_clock::time_point time_start, time_stop;
     // load and initalize board
     unsigned short* board = new unsigned short[N * N];
     std::string filename;
@@ -22,7 +23,10 @@ int main()
         return 0;
     }
 
+    std::cout << "Loaded board:\n";
+    print_board(board);
 
+    time_start = std::chrono::high_resolution_clock::now();
 #pragma region Initialize memory for bfs and dfs
 
         // initialize variables used in bfs and dfs
@@ -33,6 +37,8 @@ int main()
         int* board_index;
         __int16* old_validators;
         __int16* new_validators;
+        int* solution_found;
+        unsigned short* solution_board;
 
         // allocate memory
         cudaError_t cudaStatus = cudaMalloc(&new_boards, max_boards_size * sizeof(unsigned short));
@@ -56,6 +62,12 @@ int main()
         cudaStatus = cudaMalloc(&new_validators, max_boards_size * sizeof(__int16));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
+        cudaStatus = cudaMalloc(&solution_found, sizeof(int));
+        if (cudaStatus != cudaSuccess)
+            fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
+        cudaStatus = cudaMalloc(&solution_board, N * N * sizeof(unsigned short));
+        if (cudaStatus != cudaSuccess)
+            fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
 
         // memset memory
         cudaStatus = cudaMemset(new_boards, 0, max_boards_size * sizeof(unsigned short));
@@ -76,9 +88,13 @@ int main()
         cudaStatus = cudaMemset(new_validators, 0, max_boards_size * sizeof(__int16));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMemset failed: %s\n", cudaGetErrorString(cudaStatus));
+        cudaStatus = cudaMemset(solution_found, 0, sizeof(bool));
+        if (cudaStatus != cudaSuccess)
+            fprintf(stderr, "cudaMemset failed: %s\n", cudaGetErrorString(cudaStatus));
 
         // copy the initial board to the old boards
         cudaMemcpy(prev_boards, board, N * N * sizeof(unsigned short), cudaMemcpyHostToDevice);
+        cudaMemcpy(solution_board, board, N * N * sizeof(unsigned short), cudaMemcpyHostToDevice);
         
         // init validators
         __int16 validator[validator_size] = {0};
@@ -86,23 +102,24 @@ int main()
         cudaMemcpy(old_validators, validator, validator_size * sizeof(__int16), cudaMemcpyHostToDevice);
 
 #pragma endregion
+    time_stop = std::chrono::high_resolution_clock::now();
+
+    std::cout << "Allocation of memory took: "<< 0.001 * std::chrono::duration_cast<std::chrono::microseconds>(time_stop - time_start).count() << " ms\n\n";
 
     // run bfs to create boards
+    time_start = std::chrono::high_resolution_clock::now();
     int boards_count = run_bfs(prev_boards, new_boards, board_index, 0, old_validators, new_validators, empty_cells, empty_cells_count);
-    printf("Number of boards found in bfs: %d\n", boards_count);
-
-    // variables to keep solution
-    int* solution_found;
-    unsigned short* solution_board;
-
-    // allocate memory for them
-    cudaMalloc(&solution_found, sizeof(int));
-    cudaMalloc(&solution_board, N * N * sizeof(unsigned short));
-    cudaMemset(solution_found, 0, sizeof(bool));
-    cudaMemcpy(solution_board, board, N * N * sizeof(unsigned short), cudaMemcpyHostToDevice);
+    time_stop = std::chrono::high_resolution_clock::now();
+    printf("Number of boards found in bfs after %d iterations: %d\n", iterations, boards_count);
+    auto bfs_time = 0.001 * std::chrono::duration_cast<std::chrono::microseconds>(time_stop - time_start).count();
+    std::cout << "BFS took: " << bfs_time << " ms\n\n";
 
     // run dfs to solve boards
+    time_start = std::chrono::high_resolution_clock::now();
     kernel_DFS(new_boards, new_validators, boards_count, empty_cells, empty_cells_count, solution_found, solution_board);
+    time_stop = std::chrono::high_resolution_clock::now();
+    auto dfs_time = 0.001 * std::chrono::duration_cast<std::chrono::microseconds>(time_stop - time_start).count();
+    std::cout << "DFS took: " << dfs_time << " ms\n\n";
 
     // copy solution to cpu
     unsigned short solution_board_cpu[N * N];
@@ -110,7 +127,10 @@ int main()
     cudaMemcpy(solution_board_cpu, solution_board, N * N * sizeof(unsigned short), cudaMemcpyDeviceToHost);
 
     // print solution
+    std::cout << "Solution board:\n";
     print_board(solution_board_cpu);
+    std::cout << "\nAlgorithm took: " << dfs_time + bfs_time << " ms\n\n";
+
 
     // free memory
     cudaFree(empty_cells);
@@ -150,15 +170,18 @@ void print_board(unsigned short* board)
 {
     for (int i = 0; i < N; ++i)
     {
-        printf("-------------------------------------\n");
+        if(i%3 == 0)
+            printf("-------------------------------\n");
         for (int j = 0; j < N; ++j)
         {
-            printf("|");
+            if(j%3 == 0)
+                printf("|");
             printf(" %d ", board[i * N + j]);
         }
         printf("|\n");
     }
-    printf("-------------------------------------\n\n");
+    printf("-------------------------------\n\n");
+
 }
 
 // function to run bfs
