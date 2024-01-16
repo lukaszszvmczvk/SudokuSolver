@@ -1,5 +1,4 @@
 ﻿#include "kernel.cuh"
-#include <iostream>
 
 __global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index, int boards_count, __int16* old_validators, 
 	__int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count, bool is_last)
@@ -127,12 +126,14 @@ __global__ void DFS(unsigned short* boards, __int16* validators, int boards_coun
 
 			for (int value = current_board[cell_id] + 1; value <= N; ++value)
 			{
+				// check if value matches conditions
 				int row_flag = (1 << value) & (currentValidators[row]);
 				int column_flag = (1 << value) & (currentValidators[N + column]);;
 				int subboard_flag = (1 << value) & (currentValidators[2 * N + subboard]);
 
 				flag = row_flag == 0 && column_flag == 0 && subboard_flag == 0;
 
+				// if value is correct update board and validators
 				if (flag)
 				{
 					current_board[cell_id] = value;
@@ -151,6 +152,7 @@ __global__ void DFS(unsigned short* boards, __int16* validators, int boards_coun
 				current_board[cell_id] = 0;
 				empty_index--;
 
+				// if there is still posibility to find solution then update board and validators
 				if (empty_index >= 0)
 				{
 					cell_id = empty_cells[empty_index];
