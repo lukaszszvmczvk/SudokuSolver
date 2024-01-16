@@ -4,7 +4,7 @@
 bool load(std::string filename, unsigned short* board);
 void print_board(unsigned short* board);
 int run_bfs(unsigned short* prev_boards, unsigned short* new_boards, int* board_index,
-    unsigned short* empty_spaces, int boards_count, __int16* old_validators, __int16* new_validators);
+    int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_spaces);
 void initialize_validators(unsigned short* board, __int16 validators[]);
 unsigned short count_empty_spaces(unsigned short* board);
 
@@ -41,7 +41,7 @@ int main()
         cudaStatus = cudaMalloc(&prev_boards, max_boards_size * sizeof(unsigned short));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
-        cudaStatus = cudaMalloc(&empty_spaces, max_boards_size * sizeof(unsigned short));
+        cudaStatus = cudaMalloc(&empty_spaces, N * N * sizeof(unsigned short));
         if (cudaStatus != cudaSuccess)
             fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
         cudaStatus = cudaMalloc(&board_index, sizeof(int));
@@ -81,7 +81,7 @@ int main()
 
 #pragma endregion
 
-    int boards_count = run_bfs(prev_boards, new_boards, board_index, empty_spaces, 0, old_validators, new_validators);
+    int boards_count = run_bfs(prev_boards, new_boards, board_index, 0, old_validators, new_validators, empty_spaces);
     printf("Number of boards found in bfs: %d\n", boards_count);
 
     // variables to keep solution
@@ -95,6 +95,7 @@ int main()
     cudaMemcpy(solution_board, board, N * N * sizeof(unsigned short), cudaMemcpyHostToDevice);
 
     unsigned short empty_spaces_count = count_empty_spaces(board) - iterations;
+
     // run dfs
     kernel_DFS(new_boards, new_validators, boards_count, empty_spaces, empty_spaces_count, solution_found, solution_board);
 
@@ -157,7 +158,7 @@ void print_board(unsigned short* board)
 
 // function to run bfs
 int run_bfs(unsigned short* prev_boards, unsigned short* new_boards, int* board_index,
-    unsigned short* empty_spaces, int boards_count, __int16* old_validators, __int16* new_validators)
+    int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_spaces)
 {
     for (int i = 0; i < iterations; ++i)
     {
@@ -167,13 +168,15 @@ int run_bfs(unsigned short* prev_boards, unsigned short* new_boards, int* board_
         if (boards_count == 0)
             boards_count = 1;
 
+        bool is_last = (i == iterations - 1);
+
         if (i % 2 == 0)
         {
-            kernel_BFS(prev_boards, new_boards, board_index, empty_spaces, boards_count, old_validators, new_validators);
+            kernel_BFS(prev_boards, new_boards, board_index, boards_count, old_validators, new_validators, empty_spaces, is_last);
         }
         else
         {
-            kernel_BFS(new_boards, prev_boards, board_index, empty_spaces, boards_count, new_validators, old_validators);
+            kernel_BFS(new_boards, prev_boards, board_index, boards_count, new_validators, old_validators, empty_spaces, is_last);
         }
     }
 

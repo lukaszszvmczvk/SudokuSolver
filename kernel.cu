@@ -1,8 +1,7 @@
 ﻿#include "kernel.cuh"
 #include <iostream>
 
-__global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index,
-	unsigned short* empty_spaces, int boards_count, __int16* old_validators, __int16* new_validators)
+__global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index, int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_spaces, bool is_last)
 {
 	unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -70,10 +69,10 @@ __global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int*
 						// update validators
 						new_validators[current_board * validator_size + j] = old_validators[index * validator_size + j];
 					}
-					if (new_boards[current_board * N * N + j] == 0 && (j / N != row || j % N != column))
+					if (is_last && new_boards[current_board * N * N + j] == 0 && (j / N != row || j % N != column))
 					{
 						// update empty spaces used in DFS
-						empty_spaces[current_board * N * N + e_id] = j;
+						empty_spaces[e_id] = j;
 						e_id++;
 					}
 				}
@@ -101,12 +100,11 @@ __global__ void DFS(unsigned short* boards, __int16* validators, int boards_coun
 		int empty_index = 0;
 
 		unsigned short* current_board = boards + index * N * N;
-		unsigned short* current_empty_spaces = empty_spaces + index * N * N;
 		__int16* currentValidators = validators + index * validator_size;
 
 		while (empty_index >= 0 && empty_index < empty_spaces_count)
 		{
-			int cell_id = current_empty_spaces[empty_index];
+			int cell_id = empty_spaces[empty_index];
 
 			int row = cell_id / N;
 			int column = cell_id % N;
@@ -141,7 +139,7 @@ __global__ void DFS(unsigned short* boards, __int16* validators, int boards_coun
 
 				if (empty_index >= 0)
 				{
-					cell_id = current_empty_spaces[empty_index];
+					cell_id = empty_spaces[empty_index];
 
 					unsigned short value = current_board[cell_id];
 					row = cell_id / N;
@@ -169,11 +167,10 @@ __global__ void DFS(unsigned short* boards, __int16* validators, int boards_coun
 	}
 }
 
-void kernel_BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index,
-	unsigned short* empty_spaces, int boards_count, __int16* old_validators, __int16* new_validators)
+void kernel_BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index, int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_spaces, bool is_last)
 {
 	BFS <<< blocks_count, threads_count >>> (old_boards, new_boards, board_index, 
-		empty_spaces, boards_count, old_validators, new_validators);
+		boards_count, old_validators, new_validators, empty_spaces, is_last);
 	cudaDeviceSynchronize();
 }
 
