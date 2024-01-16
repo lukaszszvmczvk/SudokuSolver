@@ -15,75 +15,77 @@ __global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int*
 		while (empty_index < board_start + N * N)
 		{
 			if (old_boards[empty_index] == 0)
-				break;
-			empty_index++;
-		}
-
-		// return if there is no empty cell
-		if (empty_index == board_start + N * N)
-			return;
-
-		// get column, row and subboard of current cell
-		int row = (empty_index - board_start) / N;
-		int column = (empty_index - board_start) % N;
-		int subboard = (row / 3) * 3 + (column / 3);
-
-		// create boards with correct values
-		for (int value = 1; value <= N; ++value)
-		{
-			bool flag = true;
-
-			// check row
-			int bit = (1 << value) & (old_validators[index * validator_size + row]);
-			if (bit != 0)
 			{
-				flag = false;
-			}
+				// get column, row and subboard of current cell
+				int row = (empty_index - board_start) / N;
+				int column = (empty_index - board_start) % N;
+				int subboard = (row / 3) * 3 + (column / 3);
 
-			// check column
-			bit = (1 << value) & (old_validators[index * validator_size + N + column]);
-			if (bit != 0)
-			{
-				flag = false;
-			}
-
-			// check subboard
-			bit = (1 << value) & (old_validators[index * validator_size + 2 * N + subboard]);
-			if (bit != 0)
-			{
-				flag = false;
-			}
-
-			// if correct then add board to new_boards
-			if (flag)
-			{
-				// get current_board and update shared board_index
-				int current_board = atomicAdd(board_index, 1);
-				int e_id = 0;
-				for (int j = 0; j < N * N; ++j)
+				// create boards with correct values
+				for (int value = 1; value <= N; ++value)
 				{
-					// update new_boards
-					new_boards[current_board * N * N + j] = old_boards[board_start + j];
-					if (j < validator_size)
+					bool flag = true;
+
+					// check row
+					int bit = (1 << value) & (old_validators[index * validator_size + row]);
+					if (bit != 0)
 					{
-						// update validators
-						new_validators[current_board * validator_size + j] = old_validators[index * validator_size + j];
+						flag = false;
 					}
-					if (is_last && new_boards[current_board * N * N + j] == 0 && (j / N != row || j % N != column))
+
+					// check column
+					bit = (1 << value) & (old_validators[index * validator_size + N + column]);
+					if (bit != 0)
 					{
-						// update empty spaces used in DFS
-						empty_spaces[e_id] = j;
-						e_id++;
+						flag = false;
+					}
+
+					// check subboard
+					bit = (1 << value) & (old_validators[index * validator_size + 2 * N + subboard]);
+					if (bit != 0)
+					{
+						flag = false;
+					}
+
+					// if correct then add board to new_boards
+					if (flag)
+					{
+						// get current_board and update shared board_index
+						int current_board = atomicAdd(board_index, 1);
+						int e_id = 0;
+						for (int j = 0; j < N * N; ++j)
+						{
+							// update new_boards
+							new_boards[current_board * N * N + j] = old_boards[board_start + j];
+							if (j < validator_size)
+							{
+								// update validators
+								new_validators[current_board * validator_size + j] = old_validators[index * validator_size + j];
+							}
+							if (is_last && new_boards[current_board * N * N + j] == 0 && (j / N != row || j % N != column))
+							{
+								// update empty spaces used in DFS
+								empty_spaces[e_id] = j;
+								e_id++;
+							}
+						}
+
+						// assign value to empty cell
+						new_boards[current_board * N * N + empty_index - board_start] = value;
+
+						// update validators with added value
+						new_validators[current_board * validator_size + row] |= (1 << value);
+						new_validators[current_board * validator_size + N + column] |= (1 << value);
+						new_validators[current_board * validator_size + 2 * N + subboard] |= (1 << value);
 					}
 				}
 
-				// assign value to empty cell
-				new_boards[current_board * N * N + empty_index - board_start] = value;
-
-				// update validators with added value
-				new_validators[current_board * validator_size + row] |= (1 << value);
-				new_validators[current_board * validator_size + N + column] |= (1 << value);
-				new_validators[current_board * validator_size + 2 * N + subboard] |= (1 << value);
+				// empty cell found
+				break;
+			}
+			else
+			{
+				empty_index++;
 			}
 		}
 
