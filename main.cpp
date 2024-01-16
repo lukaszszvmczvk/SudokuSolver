@@ -1,11 +1,11 @@
 #include "kernel.cuh"
 
-
 bool load(std::string filename, unsigned short* board);
 void print_board(unsigned short* board);
 int run_bfs(unsigned short* prev_boards, unsigned short* new_boards, int* board_index,
     int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count);
 void initialize_validators(unsigned short* board, __int16 validators[]);
+bool validate_solution(unsigned short* board, unsigned short* solution);
 
 int main()
 {
@@ -129,6 +129,18 @@ int main()
     // print solution
     std::cout << "Solution board:\n";
     print_board(solution_board_cpu);
+
+    // check if solution is correct
+    bool is_solution_correct = validate_solution(board, solution_board_cpu);
+    if (is_solution_correct)
+    {
+        std::cout << "Solution is correct\n";
+    }
+    else
+    {
+        std::cout << "Solution is incorrect\n";
+    }
+
     std::cout << "\nAlgorithm took: " << dfs_time + bfs_time << " ms\n\n";
 
 
@@ -270,4 +282,66 @@ void initialize_validators(unsigned short* board, __int16 validators[])
         }
         validators[2 * N + i] = subboard;
     }
+}
+
+// validate soultion board
+bool validate_solution(unsigned short* board, unsigned short* solution)
+{
+    // check if initial board was changed in correct way
+    for (int i = 0; i < N * N; ++i)
+    {
+        if (solution[i] == 0 || (board[i] > 0 && solution[i] != board[i]))
+        {
+            return false;
+        }
+    }
+
+    // check rows
+    for (int i = 0; i < N; ++i)
+    {
+        int validator = 0;
+        for (int j = 0; j < N; ++j)
+        {
+            int value = solution[i * N + j];
+            int is_valid = (1 << value) & (validator);
+            if (is_valid != 0)
+                return false;
+            validator |= (1 << value);
+        }
+    }
+
+    // check columns
+    for (int i = 0; i < N; ++i)
+    {
+        int validator = 0;
+        for (int j = 0; j < N; ++j)
+        {
+            int value = solution[i + N * j];
+            int is_valid = (1 << value) & (validator);
+            if (is_valid != 0)
+                return false;
+            validator |= (1 << value);
+        }
+    }
+
+    //check subboards
+    for (int i = 0; i < N; ++i)
+    {
+        int validator = 0;
+        int start = ((i / 3) * 3) * N + ((i % 3) * 3);
+        for (int j = 0; j < N; ++j)
+        {
+            int r = j / 3;
+            int c = j % 3;
+            int value = solution[start + r * N + c];
+            int is_valid = (1 << value) & (validator);
+            if (is_valid != 0)
+                return false;
+            validator |= (1 << value);
+
+        }
+    }
+
+    return true;
+
 }
