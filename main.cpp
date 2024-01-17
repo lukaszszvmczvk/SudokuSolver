@@ -3,19 +3,35 @@
 bool load(std::string filename, unsigned short* board);
 void print_board(unsigned short* board);
 int run_bfs(unsigned short* prev_boards, unsigned short* new_boards, int* board_index,
-    int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count);
+    int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count, int iterations);
 void initialize_validators(unsigned short* board, __int16 validators[]);
 bool validate_solution(unsigned short* board, unsigned short* solution);
 
-int main()
+int main(int argc, char* argv[])
 {
+    std::string filename;
+    int iterations = 23;
+    if (argc == 2)
+    {
+        filename = argv[1];
+    }
+    else if (argc == 3)
+    {
+        filename = argv[1];
+        iterations = std::stoi(argv[2]);
+    }
+    else
+    {
+        std::cout << "Enter filename:\n";
+        std::cin >> filename;
+        std::cout << "Enter number of iterations of BFS:\n";
+        std::cin >> iterations;
+    }
+
     cudaSetDevice(0);
     std::chrono::steady_clock::time_point time_start, time_stop;
     // load and initalize board
     unsigned short* board = new unsigned short[N * N];
-    std::string filename;
-    std::cout << "Enter filename:\n";
-    std::cin >> filename;
 
     if (load(filename, board) == false)
     {
@@ -108,7 +124,7 @@ int main()
 
     // run bfs to create boards
     time_start = std::chrono::high_resolution_clock::now();
-    int boards_count = run_bfs(prev_boards, new_boards, board_index, 0, old_validators, new_validators, empty_cells, empty_cells_count);
+    int boards_count = run_bfs(prev_boards, new_boards, board_index, 0, old_validators, new_validators, empty_cells, empty_cells_count, iterations);
     time_stop = std::chrono::high_resolution_clock::now();
     printf("Number of boards found in bfs after %d iterations: %d\n", iterations, boards_count);
     auto bfs_time = 0.001 * std::chrono::duration_cast<std::chrono::microseconds>(time_stop - time_start).count();
@@ -151,6 +167,9 @@ int main()
     cudaFree(board_index);
     cudaFree(old_validators);
     cudaFree(new_validators);
+
+    std::cout<<"\nPress enter to end program\n";
+    std::cin.get();
 
 	return 0;
 }
@@ -198,7 +217,7 @@ void print_board(unsigned short* board)
 
 // function to run bfs
 int run_bfs(unsigned short* prev_boards, unsigned short* new_boards, int* board_index,
-    int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count)
+    int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count, int iterations)
 {
     for (int i = 0; i < iterations; ++i)
     {

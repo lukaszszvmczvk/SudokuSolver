@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <curand.h>
 #include <chrono>
+#include <string>
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
