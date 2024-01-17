@@ -5,7 +5,7 @@ __global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int*
 {
 	unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-	while (index < boards_count)
+	while (index < boards_count && boards_count < max_boards)
 	{
 		// get board_start index
 		int board_start = index * N * N;

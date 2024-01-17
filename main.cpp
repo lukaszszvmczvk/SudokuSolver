@@ -1,6 +1,6 @@
 #include "kernel.cuh"
 
-bool load(std::string filename, unsigned short* board);
+bool load(std::string filename, unsigned short* board, int* empty_count);
 void print_board(unsigned short* board);
 int run_bfs(unsigned short* prev_boards, unsigned short* new_boards, int* board_index,
     int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count, int iterations);
@@ -32,13 +32,18 @@ int main(int argc, char* argv[])
     std::chrono::steady_clock::time_point time_start, time_stop;
     // load and initalize board
     unsigned short* board = new unsigned short[N * N];
+    int empty_count = 0;
 
-    if (load(filename, board) == false)
+    if (load(filename, board, &empty_count) == false)
     {
         printf("Reading from file error\n");
         return 0;
     }
 
+    if (iterations > empty_count)
+    {
+        iterations = empty_count;
+    }
     std::cout << "Loaded board:\n";
     print_board(board);
 
@@ -175,7 +180,7 @@ int main(int argc, char* argv[])
 }
 
 // function to load board from txt file
-bool load(std::string filename, unsigned short* board)
+bool load(std::string filename, unsigned short* board, int* empty_count)
 {
     std::ifstream file(filename);
 
@@ -184,11 +189,18 @@ bool load(std::string filename, unsigned short* board)
         return false;
     }
 
-    for (int i = 0; i < N * N; ++i) {
-        if (!(file >> board[i])) {
+    for (int i = 0; i < N * N; ++i) 
+    {
+        if (!(file >> board[i])) 
+        {
             std::cerr << "Error reading from file." << std::endl;
             file.close();
             return false;
+        }
+
+        if (board[i] == 0)
+        {
+            (*empty_count)++;
         }
     }
 
