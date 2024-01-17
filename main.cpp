@@ -14,12 +14,12 @@ int main()
     // load and initalize board
     unsigned short* board = new unsigned short[N * N];
     std::string filename;
-    std::cout << "Podaj nazwe pliku z sudoku:\n";
+    std::cout << "Enter filename:\n";
     std::cin >> filename;
 
     if (load(filename, board) == false)
     {
-        printf("Taki plik nie istnieje\n");
+        printf("Reading from file error\n");
         return 0;
     }
 
