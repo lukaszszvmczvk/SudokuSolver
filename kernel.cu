@@ -1,7 +1,7 @@
 ﻿#include "kernel.cuh"
 
 __global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index, int boards_count, __int16* old_validators, 
-	__int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count, bool is_last)
+	__int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count, int *end_flag)
 {
 	unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -52,6 +52,11 @@ __global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int*
 					{
 						// get current_board and update shared board_index
 						int current_board = atomicAdd(board_index, 1);
+						if (current_board > max_boards)
+						{
+							(*end_flag) = 1;
+							atomicAdd(board_index, -1);
+						}
 						int e_id = 0;
 						for (int j = 0; j < N * N; ++j)
 						{
@@ -62,7 +67,7 @@ __global__ void BFS(unsigned short* old_boards, unsigned short* new_boards, int*
 								// update validators
 								new_validators[current_board * validator_size + j] = old_validators[index * validator_size + j];
 							}
-							if (is_last && new_boards[current_board * N * N + j] == 0 && (j / N != row || j % N != column))
+							if (new_boards[current_board * N * N + j] == 0 && ((j / N != row || j % N != column) || *end_flag != 0))
 							{
 								// update empty spaces used in DFS
 								empty_cells[e_id] = j;
@@ -184,10 +189,15 @@ __global__ void DFS(unsigned short* boards, __int16* validators, int boards_coun
 	}
 }
 
-void kernel_BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index, int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count, bool is_last)
+void kernel_BFS(unsigned short* old_boards, unsigned short* new_boards, int* board_index, int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count, int* end_flag)
 {
 	BFS <<< blocks_count, threads_count >>> (old_boards, new_boards, board_index, 
-		boards_count, old_validators, new_validators, empty_cells, empty_cells_count, is_last);
+		boards_count, old_validators, new_validators, empty_cells, empty_cells_count, end_flag);
+	cudaError_t cudaStatus;
+	cudaStatus = cudaGetLastError();
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "Kernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+	}
 	cudaDeviceSynchronize();
 }
 

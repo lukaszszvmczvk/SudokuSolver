@@ -3,7 +3,7 @@
 bool load(std::string filename, unsigned short* board, int* empty_count);
 void print_board(unsigned short* board);
 int run_bfs(unsigned short* old_boards, unsigned short* new_boards, int* board_index,
-    int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count, int iterations);
+    int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count, int* iterations);
 void initialize_validators(unsigned short* board, __int16 validators[]);
 bool validate_solution(unsigned short* board, unsigned short* solution);
 
@@ -130,7 +130,7 @@ int main(int argc, char* argv[])
 
     // run bfs to create boards
     time_start = std::chrono::high_resolution_clock::now();
-    int boards_count = run_bfs(old_boards, new_boards, board_index, 0, old_validators, new_validators, empty_cells, empty_cells_count, iterations);
+    int boards_count = run_bfs(old_boards, new_boards, board_index, 0, old_validators, new_validators, empty_cells, empty_cells_count, &iterations);
     time_stop = std::chrono::high_resolution_clock::now();
     printf("Number of boards found in bfs after %d iterations: %d\n", iterations, boards_count);
     auto bfs_time = 0.001 * std::chrono::duration_cast<std::chrono::microseconds>(time_stop - time_start).count();
@@ -237,9 +237,15 @@ void print_board(unsigned short* board)
 
 // function to run bfs
 int run_bfs(unsigned short* old_boards, unsigned short* new_boards, int* board_index,
-    int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count, int iterations)
+    int boards_count, __int16* old_validators, __int16* new_validators, unsigned short* empty_cells, unsigned short* empty_cells_count, int* iterations)
 {
-    for (int i = 0; i < iterations; ++i)
+    int* end_flag;
+    int end_flag_cpu = 0;
+
+    cudaMalloc((void**)&end_flag, sizeof(int));
+    cudaMemset(end_flag, 0, sizeof(int));
+
+    for (int i = 0; i < *iterations; ++i)
     {
         cudaMemcpy(&boards_count, board_index, sizeof(int), cudaMemcpyDeviceToHost);
         cudaMemset(board_index, 0, sizeof(int));
@@ -247,15 +253,21 @@ int run_bfs(unsigned short* old_boards, unsigned short* new_boards, int* board_i
         if (boards_count == 0)
             boards_count = 1;
 
-        bool is_last = (i == iterations - 1);
-
         if (i % 2 == 0)
         {
-            kernel_BFS(old_boards, new_boards, board_index, boards_count, old_validators, new_validators, empty_cells, empty_cells_count, is_last);
+            kernel_BFS(old_boards, new_boards, board_index, boards_count, old_validators, new_validators, empty_cells, empty_cells_count, end_flag);
         }
         else
         {
-            kernel_BFS(new_boards, old_boards, board_index, boards_count, new_validators, old_validators, empty_cells, empty_cells_count, is_last);
+            kernel_BFS(new_boards, old_boards, board_index, boards_count, new_validators, old_validators, empty_cells, empty_cells_count, end_flag);
+        }
+
+        cudaMemcpy(&end_flag_cpu, end_flag, sizeof(int), cudaMemcpyDeviceToHost);
+
+        if (end_flag_cpu != 0)
+        {
+            *iterations = i;
+            break;
         }
     }
 
