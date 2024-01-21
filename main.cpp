@@ -279,6 +279,7 @@ int run_bfs(unsigned short* old_boards, unsigned short* new_boards, int* board_i
 
         if (end_flag_cpu != 0)
         {
+            std::cout << "BFS ended earlier, because memory limit was reached.\n\n";
             cudaFree(end_flag);
             *iterations = i;
             return boards_count;
