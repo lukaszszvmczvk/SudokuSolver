@@ -267,7 +267,7 @@ int run_bfs(unsigned short* old_boards, unsigned short* new_boards, int* board_i
         if (end_flag_cpu != 0)
         {
             *iterations = i;
-            break;
+            return boards_count;
         }
     }
 
