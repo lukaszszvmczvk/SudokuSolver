@@ -152,22 +152,31 @@ int main(int argc, char* argv[])
 
     // copy solution to cpu
     unsigned short solution_board_cpu[N * N];
+    bool sol_found = false;
     memset(solution_board_cpu, 0, N * N * sizeof(unsigned short));
     cudaMemcpy(solution_board_cpu, solution_board, N * N * sizeof(unsigned short), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&sol_found, solution_found, sizeof(bool), cudaMemcpyDeviceToHost);
 
-    // print solution
-    std::cout << "Solution board:\n";
-    print_board(solution_board_cpu);
-
-    // check if solution is correct
-    bool is_solution_correct = validate_solution(board, solution_board_cpu);
-    if (is_solution_correct)
+    if (sol_found)
     {
-        std::cout << "Solution is correct\n";
+        // print solution
+        std::cout << "Solution board:\n";
+        print_board(solution_board_cpu);
+
+        // check if solution is correct
+        bool is_solution_correct = validate_solution(board, solution_board_cpu);
+        if (is_solution_correct)
+        {
+            std::cout << "Solution is correct\n";
+        }
+        else
+        {
+            std::cout << "Solution is incorrect\n";
+        }
     }
     else
     {
-        std::cout << "Solution is incorrect\n";
+        std::cout << "Solution not found\n";
     }
 
     std::cout << "\nAlgorithm took: " << dfs_time + bfs_time << " ms\n\n";
@@ -180,6 +189,10 @@ int main(int argc, char* argv[])
     cudaFree(board_index);
     cudaFree(old_validators);
     cudaFree(new_validators);
+    cudaFree(solution_board);
+    cudaFree(solution_found);
+    cudaFree(empty_cells_count);
+
 
     std::cout<<"\nPress enter to end program\n";
     std::cin.get();
@@ -266,6 +279,7 @@ int run_bfs(unsigned short* old_boards, unsigned short* new_boards, int* board_i
 
         if (end_flag_cpu != 0)
         {
+            cudaFree(end_flag);
             *iterations = i;
             return boards_count;
         }
@@ -273,6 +287,7 @@ int run_bfs(unsigned short* old_boards, unsigned short* new_boards, int* board_i
 
     cudaMemcpy(&boards_count, board_index, sizeof(int), cudaMemcpyDeviceToHost);
 
+    cudaFree(end_flag);
     return boards_count;
 }
 
