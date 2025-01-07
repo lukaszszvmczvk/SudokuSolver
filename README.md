@@ -16,5 +16,3 @@ Both BFS and DFS are implemented inside a CUDA kernel to fully utilize the GPU's
 ## 🛠️ Tech Stack
 - **Language**: C
 - **GPU Framework**: CUDA
-- **Algorithm**: Hybrid BFS/DFS for parallel backtracking
-- **Tools**: Makefile for building the project
