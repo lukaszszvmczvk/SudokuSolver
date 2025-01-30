@@ -1,6 +1,6 @@
 # 🧩 Sudoku Solver
 
-This is a **GPU-accelerated Sudoku Solver** implemented in **C** with **CUDA**. The project demonstrates how parallel computing can significantly speed up solving complex Sudoku puzzles by distributing computations across thousands of GPU threads.
+This is a **GPU-accelerated Sudoku Solver** implemented in **C++** with **CUDA**. The project demonstrates how parallel computing can significantly speed up solving complex Sudoku puzzles by distributing computations across thousands of GPU threads.
 
 ---
 
@@ -14,5 +14,5 @@ Both BFS and DFS are implemented inside a CUDA kernel to fully utilize the GPU's
 ---
 
 ## 🛠️ Tech Stack
-- **Language**: C
+- **Language**: C++
 - **GPU Framework**: CUDA
